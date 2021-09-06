@@ -1,50 +1,56 @@
-# Copyright (c) Twisted Matrix Laboratories.
-# See LICENSE for details.
+from twisted.mail import smtp
+from twisted.internet import reactor, defer
+from twisted.internet.task import react
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email import encoders
+import sys, mimetypes, os
 
-"""
-Demonstrate sending mail via SMTP.
-"""
+def buildMessage(fromaddr, toaddr, subject, body, filenames):
+    message = MIMEMultipart()
+    message['From'] = fromaddr
+    message['To'] = toaddr
+    message['Subject'] = subject
+    textPart = MIMEBase('text', 'plain')
+    textPart.set_payload(body)
+    message.attach(textPart)
+    for filename in filenames:
+        # guess the mimetype
+        mimetype = mimetypes.guess_type(filename)[0]
+        if not mimetype: mimetype = 'application/octet-stream'
+        maintype, subtype = mimetype.split('/')
+        attachment = MIMEBase(maintype, subtype)
+        attachment.set_payload(open(filename).read())
+        # base64 encode for safety
+        encoders.encode_base64(attachment)
+        # include filename info
+        attachment.add_header('Content-Disposition', 'attachment',
+                              filename=os.path.split(filename)[1])
+        message.attach(attachment)
+    return message
 
+def sendComplete(result):
+    print("Message sent.")
+    reactor.stop()
 
-import sys
-from email.mime.text import MIMEText
-
-from twisted.python import log
-from twisted.mail.smtp import sendmail
-from twisted.internet import reactor
-
-
-def send(message, subject, sender, recipients, host):
-    """
-    Send email to one or more addresses.
-    """
-    msg = MIMEText(message)
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = ", ".join(recipients)
-
-    dfr = sendmail(host, sender, recipients, msg.as_string())
-
-    def success(r):
-        reactor.stop()
-
-    def error(e):
-        print(e)
-        reactor.stop()
-
-    dfr.addCallback(success)
-    dfr.addErrback(error)
-
-    reactor.run()
-
+def handleError(error):
+    print(sys.stderr, "Error", error.getErrorMessage())
+    reactor.stop()
 
 if __name__ == "__main__":
-    msg = "This is the message body"
-    subject = "This is the message subject"
+    if len(sys.argv) < 5:
+        print("Usage: %s smtphost fromaddr toaddr file1 [file2, ...]" % (
+            sys.argv[0]))
+        sys.exit(1)
 
-    host = "127.0.0.1:7101"
-    sender = "sender@example.com"
-    recipients = ["recipient@example.com"]
-
-    log.startLogging(sys.stdout)
-    send(msg, subject, sender, recipients, host)
+    smtphost = sys.argv[1]
+    fromaddr = sys.argv[2]
+    toaddr = sys.argv[3]
+    filenames = sys.argv[4:]
+    subject = input("Subject: ")
+    body = input("Message (one line): ")
+    message = buildMessage(fromaddr, toaddr, subject, body, filenames)
+    messageData = message.as_string(unixfrom=False)
+    sending = smtp.sendmail(smtphost, fromaddr, [toaddr], messageData, port=2500)
+    sending.addCallback(sendComplete).addErrback(handleError)
+    react(sending)

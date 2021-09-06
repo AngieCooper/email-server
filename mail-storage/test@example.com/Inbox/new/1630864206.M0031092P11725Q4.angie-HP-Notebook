@@ -1,0 +1,15 @@
+Received: by b'[127.0.0.1]' from b'127.0.0.1' with ESMTP ; b'Sun, 05 Sep 2021 11:50:05 -0600'
+To: test@example.com
+From: Angie Cooper <angie@localhost>
+Subject: Prueba
+Message-ID: <4bb8ba8c-663d-ed0e-3295-f8ab2b9f1728@localhost>
+Date: Sun, 5 Sep 2021 11:50:05 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:78.0) Gecko/20100101
+ Thunderbird/78.13.0
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+
+Esto es una prueba de envio de correo.
+
